@@ -1,0 +1,15 @@
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Środowisko wirtualne
+.venv/
+.env
+
+# Pliki konfiguracyjne IDE
+.vscode/
+.idea/
+
+yoyo.ini
+
+.ruff_cache

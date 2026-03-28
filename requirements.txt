@@ -1,0 +1,9 @@
+fastapi==0.135.2
+uvicorn==0.42.0
+psycopg2-binary==2.9.11
+python-dotenv==1.2.2
+yoyo-migrations==9.0.0
+
+# dev dependencies
+ruff==0.15.4
+pre-commit==4.5.1

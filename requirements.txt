@@ -7,3 +7,6 @@ yoyo-migrations==9.0.0
 # dev dependencies
 ruff==0.15.4
 pre-commit==4.5.1
+
+passlib[bcrypt]==1.7.4
+email-validator==2.1.1

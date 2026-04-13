@@ -19,4 +19,5 @@ def favicon():
 def root(db=Depends(get_db_connection)):
     return {"message": db.cursor()}
 
+
 app.include_router(auth_router)

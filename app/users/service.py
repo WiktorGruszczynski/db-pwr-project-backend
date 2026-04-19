@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from app.database import get_db_connection
 from app.users.schemas import UserRegister, UserLogin
 

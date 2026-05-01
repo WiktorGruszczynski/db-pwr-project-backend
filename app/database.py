@@ -1,7 +1,9 @@
 import psycopg2
 import os
 from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def get_db_connection():
     try:
@@ -9,9 +11,9 @@ def get_db_connection():
             host=os.getenv("DB_HOST"),
             database=os.getenv("DB_NAME"),
             user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASS"),
-            port=os.getenv("DB_PORT"),
-            cursor_factory=RealDictCursor,  # wyniki kwerend wracają jako słowniki
+            password=os.getenv("DB_PASSWORD"),
+            port=os.getenv("DB_PORT", "5432"),
+            cursor_factory=RealDictCursor,  #wyniki kwerend wracają jako słowniki
         )
         return connection
     except Exception as e:

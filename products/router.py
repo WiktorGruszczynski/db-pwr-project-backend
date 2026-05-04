@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from uuid import UUID
-import service, schemas
+import service
+import schemas
 from database import get_db
 
 router = APIRouter(prefix="/products", tags=["Products"])

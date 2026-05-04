@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from uuid import UUID
 from typing import Optional, Literal
 
+
 class ProductBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
     quantity: float = Field(..., gt=0)
@@ -15,8 +16,10 @@ class ProductBase(BaseModel):
     salt: float = Field(0.0, ge=0)
     energy_kcal: float = Field(0.0, ge=0)
 
+
 class ProductCreate(ProductBase):
     pass
+
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=128)
@@ -30,6 +33,7 @@ class ProductUpdate(BaseModel):
     protein: Optional[float] = Field(None, ge=0)
     salt: Optional[float] = Field(None, ge=0)
     energy_kcal: Optional[float] = Field(None, ge=0)
+
 
 class ProductResponse(ProductBase):
     id: UUID

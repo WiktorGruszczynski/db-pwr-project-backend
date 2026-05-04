@@ -12,7 +12,7 @@ def create_product(db, product: schemas.ProductCreate):
         # Jeśli produkt już jest, po prostu go zwracamy i nie dodajemy nowego
         return existing_product
 
-    #DODAWANIE NOWEGO (jeśli nie znaleziono duplikatu)
+    # DODAWANIE NOWEGO (jeśli nie znaleziono duplikatu)
     product_id = str(uuid4())
     sql = """
           INSERT INTO products_product (id, name, quantity, quantity_unit, energy_kcal, \
@@ -21,9 +21,18 @@ def create_product(db, product: schemas.ProductCreate):
           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING * \
           """
     values = (
-        product_id, product.name, product.quantity, product.quantity_unit, product.energy_kcal,
-        product.fat, product.saturated_fat, product.carbohydrates, product.sugars,
-        product.fiber, product.protein, product.salt
+        product_id,
+        product.name,
+        product.quantity,
+        product.quantity_unit,
+        product.energy_kcal,
+        product.fat,
+        product.saturated_fat,
+        product.carbohydrates,
+        product.sugars,
+        product.fiber,
+        product.protein,
+        product.salt,
     )
 
     cur.execute(sql, values)
@@ -62,6 +71,7 @@ def create_product(db, product: schemas.ProductCreate):
 #
 #     return create_product(db, new_data)
 
+
 def get_product(db, product_id):
     cursor = db.cursor()
     query = "SELECT * FROM products_product WHERE id = %s"
@@ -69,6 +79,7 @@ def get_product(db, product_id):
     product = cursor.fetchone()
     cursor.close()
     return product
+
 
 def delete_product(db, product_id):
     cursor = db.cursor()

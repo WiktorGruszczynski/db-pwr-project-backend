@@ -6,8 +6,9 @@ DB_PARAMS = {
     "user": "postgres",
     "password": "Pawel2005",
     "host": "localhost",
-    "port": "5432"
+    "port": "5432",
 }
+
 
 def get_db():
     conn = psycopg2.connect(**DB_PARAMS, cursor_factory=RealDictCursor)

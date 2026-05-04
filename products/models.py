@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 from datetime import datetime
 
+
 @dataclass
 class Product:
     name: str

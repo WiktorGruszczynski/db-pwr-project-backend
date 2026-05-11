@@ -5,20 +5,26 @@ import smtplib
 import os
 from datetime import datetime, timedelta
 from email.message import EmailMessage
-from passlib.context import CryptContext
 from fastapi import HTTPException
+import bcrypt
 from app.database import get_db_connection
 from app.users.schemas import UserRegister, UserLogin, UserVerify2FA
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    pwd_bytes = password.encode('utf-8')
+
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(pwd_bytes, salt)
+
+    return hashed_password.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(
+        plain_password.encode('utf-8'), 
+        hashed_password.encode('utf-8')
+    )
 
 
 def generate_session_id() -> str:

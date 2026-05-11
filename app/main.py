@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends
 from fastapi.responses import FileResponse
-from app.database import get_db_connection
+from app.database import get_db
 from app.users.router import router as users_router
 
 load_dotenv()
@@ -16,7 +16,7 @@ def favicon():
 
 # test endpoint
 @app.get("/")
-def root(db=Depends(get_db_connection)):
+def root(db=Depends(get_db)):
     return {"message": db.cursor()}
 
 

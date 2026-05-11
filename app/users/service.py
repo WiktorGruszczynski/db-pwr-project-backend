@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from email.message import EmailMessage
 from fastapi import HTTPException
 import bcrypt
-from app.database import get_db_connection
 from app.users.schemas import UserRegister, UserLogin, UserVerify2FA
 
 
@@ -63,217 +62,176 @@ def send_2fa_email(to_email: str, code: str) -> None:
 
 
 def create_and_send_2fa_code(
-    user_id: str, user_email: str, code_type: str = "EMAIL_VERIFICATION"
+    user_id: str, user_email: str, code_type: str = "EMAIL_VERIFICATION", conn=None
 ) -> None:
     code = generate_code()
     expires_at = datetime.now() + timedelta(minutes=10)
 
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO verification_code (user_id, code, code_type, expires_at) 
-                VALUES (%s, %s, %s, %s)
-                """,
-                (user_id, code, code_type, expires_at),
-            )
-            conn.commit()
-    finally:
-        conn.close()
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO verification_code (user_id, code, code_type, expires_at) 
+            VALUES (%s, %s, %s, %s)
+            """,
+            (user_id, code, code_type, expires_at),
+        )
+        conn.commit()
 
     send_2fa_email(to_email=user_email, code=code)
 
 
-def register_new_user(user: UserRegister) -> None:
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT id, is_enabled FROM users_user WHERE email = %s OR username = %s",
-                (user.email, user.username),
-            )
-            existing_user = cursor.fetchone()
+def register_new_user(user: UserRegister, conn) -> None:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT id, is_enabled FROM users_user WHERE email = %s OR username = %s",
+            (user.email, user.username),
+        )
+        existing_user = cursor.fetchone()
 
-            if existing_user:
-                if existing_user["is_enabled"]:
-                    raise HTTPException(
-                        status_code=400, detail="Użytkownik już istnieje"
-                    )
-                else:
-                    create_and_send_2fa_code(
-                        existing_user["id"], user.email, "EMAIL_VERIFICATION"
-                    )
-                    return
-
-            hashed_password = get_password_hash(user.password)
-
-            cursor.execute(
-                """
-                INSERT INTO users_user (username, email, password, is_enabled) 
-                VALUES (%s, %s, %s, FALSE) RETURNING id
-               """,
-                (user.username, user.email, hashed_password),
-            )
-
-            new_user_id = cursor.fetchone()["id"]
-
-            conn.commit()
-            create_and_send_2fa_code(new_user_id, user.email, "EMAIL_VERIFICATION")
-    finally:
-        conn.close()
-
-
-def verify_user_registration(data: UserVerify2FA) -> None:
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT id, is_enabled FROM users_user WHERE email = %s", (data.email,)
-            )
-            user = cursor.fetchone()
-
-            if not user:
-                raise HTTPException(status_code=400, detail="Błędne dane")
-            if user["is_enabled"]:
-                raise HTTPException(
-                    status_code=400, detail="Użytkownik jest już aktywny"
+        if existing_user:
+            if existing_user["is_enabled"]:
+                raise HTTPException(status_code=400, detail="Użytkownik już istnieje")
+            else:
+                create_and_send_2fa_code(
+                    existing_user["id"], user.email, "EMAIL_VERIFICATION"
                 )
-
-            cursor.execute(
-                """
-                SELECT id FROM verification_code 
-                WHERE user_id = %s AND code = %s AND code_type = 'EMAIL_VERIFICATION' AND expires_at > CURRENT_TIMESTAMP
-                """,
-                (user["id"], data.code),
-            )
-            valid_code = cursor.fetchone()
-
-            if not valid_code:
-                raise HTTPException(status_code=400, detail="Nieprawidłowy kod")
-
-            cursor.execute(
-                "UPDATE users_user SET is_enabled = TRUE WHERE id = %s", (user["id"],)
-            )
-            cursor.execute(
-                "DELETE FROM verification_code WHERE id = %s", (valid_code["id"],)
-            )
-            conn.commit()
-    finally:
-        conn.close()
-
-
-def authenticate_user(user: UserLogin) -> str:
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT id, password, is_enabled FROM users_user WHERE email = %s",
-                (user.email,),
-            )
-            db_user = cursor.fetchone()
-
-            if not db_user or not verify_password(user.password, db_user["password"]):
-                raise HTTPException(
-                    status_code=401, detail="Nieprawidłowy email lub hasło"
-                )
-
-            if not db_user["is_enabled"]:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Najpierw potwierdź swój adres e-mail (skorzystaj ponownie z formularza rejestracji by wymusić nowy kod).",
-                )
-
-            session_id = generate_session_id()
-            expires_at = get_session_expiration()
-
-            cursor.execute(
-                "INSERT INTO session (id, user_id, expires_at) VALUES (%s, %s, %s)",
-                (session_id, db_user["id"], expires_at),
-            )
-            conn.commit()
-            return session_id
-
-    finally:
-        conn.close()
-
-
-def remove_session(session_id: str) -> None:
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("DELETE FROM session WHERE id = %s", (session_id,))
-            conn.commit()
-    finally:
-        conn.close()
-
-
-def get_user_by_session(session_id: str) -> dict | None:
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT u.id, u.username, u.email
-                FROM session s
-                JOIN users_user u ON s.user_id = u.id
-                WHERE s.id = %s AND s.expires_at > CURRENT_TIMESTAMP
-            """,
-                (session_id,),
-            )
-            return cursor.fetchone()
-    finally:
-        conn.close()
-
-
-def send_password_reset_code(email: str) -> None:
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT id FROM users_user WHERE email = %s", (email,))
-            user = cursor.fetchone()
-
-            if not user:
                 return
 
-            create_and_send_2fa_code(user["id"], email, "PASSWORD_RESET")
-    finally:
-        conn.close()
+        hashed_password = get_password_hash(user.password)
+
+        cursor.execute(
+            """
+            INSERT INTO users_user (username, email, password, is_enabled) 
+            VALUES (%s, %s, %s, FALSE) RETURNING id
+            """,
+            (user.username, user.email, hashed_password),
+        )
+
+        new_user_id = cursor.fetchone()["id"]
+
+        conn.commit()
+        create_and_send_2fa_code(new_user_id, user.email, "EMAIL_VERIFICATION")
 
 
-def verify_and_reset_password(email: str, code: str, new_password: str) -> None:
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT id FROM users_user WHERE email = %s", (email,))
-            user = cursor.fetchone()
+def verify_user_registration(data: UserVerify2FA, conn) -> None:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT id, is_enabled FROM users_user WHERE email = %s", (data.email,)
+        )
+        user = cursor.fetchone()
 
-            if not user:
-                raise HTTPException(status_code=400, detail="Błędne dane")
+        if not user:
+            raise HTTPException(status_code=400, detail="Błędne dane")
+        if user["is_enabled"]:
+            raise HTTPException(status_code=400, detail="Użytkownik jest już aktywny")
 
-            cursor.execute(
-                """
-                SELECT id FROM verification_code 
-                WHERE user_id = %s AND code = %s AND code_type = 'PASSWORD_RESET' AND expires_at > CURRENT_TIMESTAMP
-                """,
-                (user["id"], code),
+        cursor.execute(
+            """
+            SELECT id FROM verification_code 
+            WHERE user_id = %s AND code = %s AND code_type = 'EMAIL_VERIFICATION' AND expires_at > CURRENT_TIMESTAMP
+            """,
+            (user["id"], data.code),
+        )
+        valid_code = cursor.fetchone()
+
+        if not valid_code:
+            raise HTTPException(status_code=400, detail="Nieprawidłowy kod")
+
+        cursor.execute(
+            "UPDATE users_user SET is_enabled = TRUE WHERE id = %s", (user["id"],)
+        )
+        cursor.execute(
+            "DELETE FROM verification_code WHERE id = %s", (valid_code["id"],)
+        )
+        conn.commit()
+
+
+def authenticate_user(user: UserLogin, conn) -> str:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT id, password, is_enabled FROM users_user WHERE email = %s",
+            (user.email,),
+        )
+        db_user = cursor.fetchone()
+
+        if not db_user or not verify_password(user.password, db_user["password"]):
+            raise HTTPException(status_code=401, detail="Nieprawidłowy email lub hasło")
+
+        if not db_user["is_enabled"]:
+            raise HTTPException(
+                status_code=403,
+                detail="Najpierw potwierdź swój adres e-mail (skorzystaj ponownie z formularza rejestracji by wymusić nowy kod).",
             )
-            valid_code = cursor.fetchone()
 
-            if not valid_code:
-                raise HTTPException(
-                    status_code=400, detail="Nieprawidłowy lub wygasły kod"
-                )
+        session_id = generate_session_id()
+        expires_at = get_session_expiration()
 
-            hashed_password = get_password_hash(new_password)
+        cursor.execute(
+            "INSERT INTO session (id, user_id, expires_at) VALUES (%s, %s, %s)",
+            (session_id, db_user["id"], expires_at),
+        )
+        conn.commit()
+        return session_id
 
-            cursor.execute(
-                "UPDATE users_user SET password = %s WHERE id = %s",
-                (hashed_password, user["id"]),
-            )
-            cursor.execute(
-                "DELETE FROM verification_code WHERE id = %s", (valid_code["id"],)
-            )
-            conn.commit()
-    finally:
-        conn.close()
+
+def remove_session(session_id: str, conn) -> None:
+    with conn.cursor() as cursor:
+        cursor.execute("DELETE FROM session WHERE id = %s", (session_id,))
+        conn.commit()
+
+
+def get_user_by_session(session_id: str, conn) -> dict | None:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT u.id, u.username, u.email
+            FROM session s
+            JOIN users_user u ON s.user_id = u.id
+            WHERE s.id = %s AND s.expires_at > CURRENT_TIMESTAMP
+        """,
+            (session_id,),
+        )
+        return cursor.fetchone()
+
+
+def send_password_reset_code(email: str, conn) -> None:
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT id FROM users_user WHERE email = %s", (email,))
+        user = cursor.fetchone()
+
+        if not user:
+            return
+
+        create_and_send_2fa_code(user["id"], email, "PASSWORD_RESET")
+
+
+def verify_and_reset_password(email: str, code: str, new_password: str, conn) -> None:
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT id FROM users_user WHERE email = %s", (email,))
+        user = cursor.fetchone()
+
+        if not user:
+            raise HTTPException(status_code=400, detail="Błędne dane")
+
+        cursor.execute(
+            """
+            SELECT id FROM verification_code 
+            WHERE user_id = %s AND code = %s AND code_type = 'PASSWORD_RESET' AND expires_at > CURRENT_TIMESTAMP
+            """,
+            (user["id"], code),
+        )
+        valid_code = cursor.fetchone()
+
+        if not valid_code:
+            raise HTTPException(status_code=400, detail="Nieprawidłowy lub wygasły kod")
+
+        hashed_password = get_password_hash(new_password)
+
+        cursor.execute(
+            "UPDATE users_user SET password = %s WHERE id = %s",
+            (hashed_password, user["id"]),
+        )
+        cursor.execute(
+            "DELETE FROM verification_code WHERE id = %s", (valid_code["id"],)
+        )
+        conn.commit()

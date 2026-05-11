@@ -105,6 +105,35 @@ Aby zachować porządek w projekcie i uniknąć konfliktów, stosujemy model pra
 ---
 
 
+### 🧹 Pre-commit i jakość kodu
+
+W projekcie używamy [pre-commit](https://pre-commit.com/) oraz [ruff](https://docs.astral.sh/ruff/) do automatycznego formatowania i lintowania kodu przy każdym `git commit`.
+
+**Instalacja narzędzi deweloperskich**
+
+   ```bash
+      pip install -r requirements-dev.txt
+   ```
+
+**Instalacja hooków pre-commit**
+
+   ```bash
+      pre-commit install
+   ```
+
+**Ręczne uruchomienie wszystkich hooków**
+
+   ```bash
+      pre-commit run --all-files
+   ```
+
+
+Po instalacji hooków, przy każdym `git commit` automatycznie uruchomią się:
+
+- `ruff` – linting i sortowanie importów
+
+- `ruff-format` – formatowanie kodu
+
 
 ### ✍️ Format commitów
 

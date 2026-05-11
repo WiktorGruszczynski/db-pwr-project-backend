@@ -12,18 +12,17 @@ from app.users.schemas import UserRegister, UserLogin, UserVerify2FA
 
 
 def get_password_hash(password: str) -> str:
-    pwd_bytes = password.encode('utf-8')
+    pwd_bytes = password.encode("utf-8")
 
     salt = bcrypt.gensalt()
     hashed_password = bcrypt.hashpw(pwd_bytes, salt)
 
-    return hashed_password.decode('utf-8')
+    return hashed_password.decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(
-        plain_password.encode('utf-8'), 
-        hashed_password.encode('utf-8')
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
     )
 
 

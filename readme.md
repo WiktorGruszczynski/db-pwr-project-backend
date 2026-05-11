@@ -51,10 +51,10 @@ Po uruchomieniu API będzie dostępne pod:
 ## 📜 Najważniejsze komendy
 
 * **`uvicorn app.main:app --reload`** – Uruchamia serwer deweloperski FastAPI z automatycznym odświeżaniem kodu.
-* **`python apply_migrations.py`** – Nakłada wszystkie nowe migracje z folderu `/migrations` na bazę danych.
-* **`python apply_migrations.py status`** – Wyświetla historię nałożonych migracji oraz wskazuje obecną wersję bazy.
-* **`python apply_migrations.py rollback`** – Cofa tylko ostatnią (jedną) nałożoną migrację.
-* **`python apply_migrations.py rollback [ID]`** – Cofa wszystkie migracje, które zostały nałożone po wskazanym identyfikatorze `[ID]`.
+* **`python migrate.py`** – Nakłada wszystkie nowe migracje z folderu `/migrations` na bazę danych.
+* **`python migrate.py status`** – Wyświetla historię nałożonych migracji oraz wskazuje obecną wersję bazy.
+* **`python migrate.py rollback`** – Cofa tylko ostatnią (jedną) nałożoną migrację.
+* **`python migrate.py rollback [ID]`** – Cofa wszystkie migracje, które zostały nałożone po wskazanym identyfikatorze `[ID]`.
 
 
 #### Examples:

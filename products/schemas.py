@@ -1,9 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 from typing import Optional, Literal
 
 
-class ProductBase(BaseModel):
+class ProductCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
     quantity: float = Field(..., gt=0)
     quantity_unit: Literal["g"] = Field("g", description="Dozwolone tylko gramy (g)")
@@ -17,14 +17,12 @@ class ProductBase(BaseModel):
     energy_kcal: float = Field(0.0, ge=0)
 
 
-class ProductCreate(ProductBase):
-    pass
-
-
 class ProductUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=128)
     quantity: Optional[float] = Field(None, gt=0)
-    quantity_unit: Optional[Literal["g"]] = None
+    quantity_unit: Optional[Literal["g"]] = Field(
+        None, description="Dozwolone tylko gramy (g)"
+    )
     fat: Optional[float] = Field(None, ge=0)
     saturated_fat: Optional[float] = Field(None, ge=0)
     carbohydrates: Optional[float] = Field(None, ge=0)
@@ -35,8 +33,18 @@ class ProductUpdate(BaseModel):
     energy_kcal: Optional[float] = Field(None, ge=0)
 
 
-class ProductResponse(ProductBase):
+class ProductResponse(BaseModel):
     id: UUID
+    name: str = Field(..., min_length=1, max_length=128)
+    quantity: float = Field(..., gt=0)
+    quantity_unit: Literal["g"] = Field("g", description="Dozwolone tylko gramy (g)")
+    fat: float = Field(0.0, ge=0)
+    saturated_fat: float = Field(0.0, ge=0)
+    carbohydrates: float = Field(0.0, ge=0)
+    sugars: float = Field(0.0, ge=0)
+    fiber: float = Field(0.0, ge=0)
+    protein: float = Field(0.0, ge=0)
+    salt: float = Field(0.0, ge=0)
+    energy_kcal: float = Field(0.0, ge=0)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

@@ -3,6 +3,8 @@ import schemas
 
 
 def create_product(db, product: schemas.ProductCreate):
+
+    # Sprawdzenie czy produkt o identycznej nazwie i kaloryczności istnieje
     cur = db.cursor()
     check_sql = "SELECT * FROM products_product WHERE name = %s AND energy_kcal = %s"
     cur.execute(check_sql, (product.name, product.energy_kcal))
@@ -39,37 +41,6 @@ def create_product(db, product: schemas.ProductCreate):
     new_product = cur.fetchone()
     db.commit()
     return new_product
-
-
-# def import_from_off(db, barcode: str):
-#     url = f"https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
-#     headers = {"User-Agent": "MojaApka/1.0"}
-#
-#     response = requests.get(url, headers=headers)
-#     if response.status_code != 200 or response.json().get("status") != 1:
-#         return None
-#
-#     p = response.json().get("product", {})
-#     n = p.get("nutriments", {})
-#
-#     # OBSŁUGA PUSTEJ NAZWY: jeśli brak 'product_name', szukamy 'generic_name' lub dajemy 'Nieznany'
-#     raw_name = p.get("product_name") or p.get("generic_name") or f"Produkt {barcode}"
-#
-#     new_data = schemas.ProductCreate(
-#         name=raw_name,
-#         quantity=100.0,
-#         quantity_unit="g",  # Tutaj walidacja Pydantic wymusi "g"
-#         fat=float(n.get("fat_100g") or 0.0),
-#         saturated_fat=float(n.get("saturated-fat_100g") or 0.0),
-#         carbohydrates=float(n.get("carbohydrates_100g") or 0.0),
-#         sugars=float(n.get("sugars_100g") or 0.0),
-#         fiber=float(n.get("fiber_100g") or 0.0),
-#         protein=float(n.get("proteins_100g") or 0.0),
-#         salt=float(n.get("salt_100g") or 0.0),
-#         energy_kcal=float(n.get("energy-kcal_100g") or 0.0)
-#     )
-#
-#     return create_product(db, new_data)
 
 
 def get_product(db, product_id):

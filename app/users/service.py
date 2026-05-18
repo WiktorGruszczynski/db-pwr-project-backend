@@ -62,7 +62,7 @@ def send_2fa_email(to_email: str, code: str) -> None:
 
 
 def create_and_send_2fa_code(
-    user_id: str, user_email: str, code_type: str = "EMAIL_VERIFICATION", conn=None
+    user_id: str, user_email: str, code_type: str, conn
 ) -> None:
     code = generate_code()
     expires_at = datetime.now() + timedelta(minutes=10)
@@ -93,7 +93,7 @@ def register_new_user(user: UserRegister, conn) -> None:
                 raise HTTPException(status_code=400, detail="Użytkownik już istnieje")
             else:
                 create_and_send_2fa_code(
-                    existing_user["id"], user.email, "EMAIL_VERIFICATION"
+                    existing_user["id"], user.email, "EMAIL_VERIFICATION", conn
                 )
                 return
 
@@ -110,7 +110,7 @@ def register_new_user(user: UserRegister, conn) -> None:
         new_user_id = cursor.fetchone()["id"]
 
         conn.commit()
-        create_and_send_2fa_code(new_user_id, user.email, "EMAIL_VERIFICATION")
+        create_and_send_2fa_code(new_user_id, user.email, "EMAIL_VERIFICATION", conn)
 
 
 def verify_user_registration(data: UserVerify2FA, conn) -> None:
@@ -202,7 +202,7 @@ def send_password_reset_code(email: str, conn) -> None:
         if not user:
             return
 
-        create_and_send_2fa_code(user["id"], email, "PASSWORD_RESET")
+        create_and_send_2fa_code(user["id"], email, "PASSWORD_RESET", conn)
 
 
 def verify_and_reset_password(email: str, code: str, new_password: str, conn) -> None:

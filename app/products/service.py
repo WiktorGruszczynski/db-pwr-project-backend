@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from .schemas import ProductCreate, ProductUpdate
 
 
@@ -91,12 +92,26 @@ def patch_product(conn, product_id: str, product_data: ProductUpdate):
     if not update_data:
         return None
 
-    columns = ", ".join([f"{key} = %s" for key in update_data.keys()])
-    values = list(update_data.values())
-    values.append(str(product_id))
-    sql = f"UPDATE products_product SET {columns} WHERE id = %s RETURNING *"
-
     with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT recipe_id FROM products_product WHERE id = %s",
+            (str(product_id),),
+        )
+        existing = cursor.fetchone()
+        if not existing:
+            return None
+        if existing["recipe_id"] is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Tego produktu nie mozna edytowac bezposrednio - "
+                "jest powiazany z przepisem. Edytuj go przez PATCH /recipes/{id}.",
+            )
+
+        columns = ", ".join([f"{key} = %s" for key in update_data.keys()])
+        values = list(update_data.values())
+        values.append(str(product_id))
+        sql = f"UPDATE products_product SET {columns} WHERE id = %s RETURNING *"
+
         cursor.execute(sql, values)
         updated_product = cursor.fetchone()
         conn.commit()

@@ -3,7 +3,11 @@ uvicorn==0.42.0
 psycopg2-binary==2.9.11
 python-dotenv==1.2.2
 yoyo-migrations==9.0.0
+passlib[bcrypt]==1.7.4
+email-validator==2.1.1
+dotenv==0.9.9
 
 # dev dependencies
 ruff==0.15.4
 pre-commit==4.5.1
+

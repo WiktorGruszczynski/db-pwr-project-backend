@@ -17,6 +17,13 @@ from app.users.service import (
 from app.users.dependencies import get_current_user
 from app.database import get_db
 
+from app.users.service import (
+    # ... inne funkcje ...
+    follow_user,
+    unfollow_user,
+)
+
+
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
@@ -73,3 +80,27 @@ def forgot_password(request: PasswordResetRequest, db=Depends(get_db)):
 def reset_password(data: PasswordResetConfirm, db=Depends(get_db)):
     verify_and_reset_password(data.email, data.code, data.new_password, db)
     return {"message": "Hasło zostało pomyślnie zmienione. Możesz się teraz zalogować."}
+
+
+@router.post("/{followed_id}/follow", status_code=status.HTTP_200_OK)
+def follow(
+    followed_id: str, current_user: dict = Depends(get_current_user), db=Depends(get_db)
+):
+    if str(current_user["id"]) == followed_id:
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nie możesz obserwować samego siebie.",
+        )
+
+    follow_user(str(current_user["id"]), followed_id, db)
+    return {"message": "Użytkownik zaobserwowany pomyślnie."}
+
+
+@router.delete("/{followed_id}/unfollow", status_code=status.HTTP_200_OK)
+def unfollow(
+    followed_id: str, current_user: dict = Depends(get_current_user), db=Depends(get_db)
+):
+    unfollow_user(str(current_user["id"]), followed_id, db)
+    return {"message": "Przestano obserwować użytkownika."}

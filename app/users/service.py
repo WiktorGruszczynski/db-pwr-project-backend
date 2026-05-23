@@ -93,7 +93,7 @@ def register_new_user(user: UserRegister, conn) -> None:
                 raise HTTPException(status_code=400, detail="Użytkownik już istnieje")
             else:
                 create_and_send_2fa_code(
-                    existing_user["id"], user.email, "EMAIL_VERIFICATION"
+                    existing_user["id"], user.email, "EMAIL_VERIFICATION", conn
                 )
                 return
 
@@ -110,7 +110,7 @@ def register_new_user(user: UserRegister, conn) -> None:
         new_user_id = cursor.fetchone()["id"]
 
         conn.commit()
-        create_and_send_2fa_code(new_user_id, user.email, "EMAIL_VERIFICATION")
+        create_and_send_2fa_code(new_user_id, user.email, "EMAIL_VERIFICATION", conn)
 
 
 def verify_user_registration(data: UserVerify2FA, conn) -> None:
@@ -202,7 +202,7 @@ def send_password_reset_code(email: str, conn) -> None:
         if not user:
             return
 
-        create_and_send_2fa_code(user["id"], email, "PASSWORD_RESET")
+        create_and_send_2fa_code(user["id"], email, "PASSWORD_RESET", conn)
 
 
 def verify_and_reset_password(email: str, code: str, new_password: str, conn) -> None:
@@ -233,5 +233,33 @@ def verify_and_reset_password(email: str, code: str, new_password: str, conn) ->
         )
         cursor.execute(
             "DELETE FROM verification_code WHERE id = %s", (valid_code["id"],)
+        )
+        conn.commit()
+
+
+def follow_user(follower_id: str, followed_id: str, conn) -> None:
+    with conn.cursor() as cursor:
+        # Sprawdzenie, czy użytkownik docelowy w ogóle istnieje
+        cursor.execute("SELECT id FROM users_user WHERE id = %s", (followed_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Nie znaleziono użytkownika.")
+
+        # Dodanie obserwacji
+        cursor.execute(
+            """
+            INSERT INTO users_follower (follower_id, followed_id) 
+            VALUES (%s, %s)
+            ON CONFLICT (follower_id, followed_id) DO NOTHING
+            """,
+            (follower_id, followed_id),
+        )
+        conn.commit()
+
+
+def unfollow_user(follower_id: str, followed_id: str, conn) -> None:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "DELETE FROM users_follower WHERE follower_id = %s AND followed_id = %s",
+            (follower_id, followed_id),
         )
         conn.commit()

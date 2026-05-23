@@ -1,17 +1,13 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends
-from fastapi.responses import FileResponse
 from app.database import get_db
 from app.users.router import router as users_router
+from app.products.router import router as products_router
+from app.recipes.router import router as recipes_router
 
 load_dotenv()
 
 app = FastAPI()
-
-
-@app.get("/favicon.ico", include_in_schema=False)
-def favicon():
-    return FileResponse("static/favicon.ico")
 
 
 # test endpoint
@@ -21,3 +17,5 @@ def root(db=Depends(get_db)):
 
 
 app.include_router(users_router)
+app.include_router(products_router)
+app.include_router(recipes_router)

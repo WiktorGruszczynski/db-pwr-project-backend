@@ -62,7 +62,7 @@ def send_2fa_email(to_email: str, code: str) -> None:
 
 
 def create_and_send_2fa_code(
-    user_id: str, user_email: str, code_type: str = "EMAIL_VERIFICATION", conn=None
+    user_id: str, user_email: str, code_type: str, conn
 ) -> None:
     code = generate_code()
     expires_at = datetime.now() + timedelta(minutes=10)

@@ -1,10 +1,9 @@
-from fastapi import Request, Depends, HTTPException, status
-from app.database import get_db
+from fastapi import Request, HTTPException, status, Depends
 from app.users.service import get_user_by_session
+from app.database import get_db
 
 
-def get_current_user(request: Request, db=Depends(get_db)):
-    # wyciągamy ciastko
+def get_current_user(request: Request, db=Depends(get_db)) -> dict:
     session_id = request.cookies.get("session_id")
     if not session_id:
         raise HTTPException(
@@ -12,7 +11,7 @@ def get_current_user(request: Request, db=Depends(get_db)):
             detail="Brak sesji. Zaloguj się ponownie.",
         )
 
-    # szukamy użytkownika w bazie
+    # delegujemy zapytanie do bazy do funkcji w serwisie
     user = get_user_by_session(session_id, db)
 
     if not user:

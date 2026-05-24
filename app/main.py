@@ -8,7 +8,7 @@ from app.meals.router import router as meals_router
 
 load_dotenv()
 
-app = FastAPI()
+app = FastAPI(title="Nutrition App")
 
 
 # test endpoint

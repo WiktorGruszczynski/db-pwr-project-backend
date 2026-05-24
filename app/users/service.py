@@ -235,3 +235,46 @@ def verify_and_reset_password(email: str, code: str, new_password: str, conn) ->
             "DELETE FROM verification_code WHERE id = %s", (valid_code["id"],)
         )
         conn.commit()
+
+
+def follow_user(follower_id: str, followed_id: str, conn) -> None:
+    with conn.cursor() as cursor:
+        # Sprawdzenie, czy użytkownik docelowy w ogóle istnieje
+        cursor.execute("SELECT id FROM users_user WHERE id = %s", (followed_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Nie znaleziono użytkownika.")
+
+        # Dodanie obserwacji
+        cursor.execute(
+            """
+            INSERT INTO users_follower (follower_id, followed_id) 
+            VALUES (%s, %s)
+            ON CONFLICT (follower_id, followed_id) DO NOTHING
+            """,
+            (follower_id, followed_id),
+        )
+        conn.commit()
+
+
+def unfollow_user(follower_id: str, followed_id: str, conn) -> None:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "DELETE FROM users_follower WHERE follower_id = %s AND followed_id = %s",
+            (follower_id, followed_id),
+        )
+        conn.commit()
+
+
+def list_followed_users(follower_id: str, conn) -> list:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT u.id, u.username, u.email, f.created_at AS followed_at
+            FROM users_follower f
+            JOIN users_user u ON u.id = f.followed_id
+            WHERE f.follower_id = %s
+            ORDER BY f.created_at DESC
+            """,
+            (follower_id,),
+        )
+        return cursor.fetchall()

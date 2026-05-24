@@ -1,41 +1,56 @@
-# Nutrition App - DB project
+# Nutrition App
 
----
-
-## 📖 O projekcie
-
-Aplikacja żywieniowa — monorepo z backendem (FastAPI) i frontendem (React + Vite).
+Aplikacja żywieniowa — monorepo z backendem (FastAPI + PostgreSQL) i frontendem (React + Vite).
 
 ```
 .
-├── backend/    # FastAPI + Postgres
-└── frontend/   # React + Vite (dev proxy → backend)
+├── backend/      # FastAPI, migracje, seed
+│   ├── app/      # kod aplikacji
+│   ├── migrations/
+│   ├── migrate.py
+│   ├── seed.py   # skrypt seedujący bazę
+│   └── requirements.txt
+└── frontend/     # React + Vite (dev proxy → backend)
 ```
 
+---
 
 ## 🚀 Uruchomienie lokalne
 
-### Backend
+### 1. Backend
 
-Wymagania: Python **3.10+**, pip.
+**Wymagania:** Python **3.10+**, pip, działająca instancja PostgreSQL.
 
 ```bash
 cd backend
+
+# utworzenie i aktywacja środowiska wirtualnego
 python -m venv .venv
-source .venv/bin/activate        # Linux / macOS
 .venv\Scripts\activate           # Windows
+source .venv/bin/activate        # Linux / macOS
+
+# instalacja zależności
 pip install -r requirements.txt
-cp .env.example .env             # i uzupełnij wartości
-python migrate.py                # nałóż migracje
-uvicorn app.main:app --reload    # API na http://localhost:8000
+
+# konfiguracja .env (uzupełnij DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT, SMTP_*)
+cp .env.example .env
+
+# migracje
+python migrate.py
+
+# (opcjonalnie) dane przykładowe — patrz sekcja Seed
+python seed.py
+
+# start serwera
+uvicorn app.main:app --reload
 ```
 
-API: [http://localhost:8000/](http://localhost:8000/)
-Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- API: <http://localhost:8000/>
+- Swagger UI: <http://localhost:8000/docs>
 
-### Frontend
+### 2. Frontend
 
-Wymagania: Node **18+**, npm.
+**Wymagania:** Node **18+**, npm.
 
 ```bash
 cd frontend
@@ -43,125 +58,123 @@ npm install
 npm run dev
 ```
 
-Aplikacja: [http://localhost:5173/](http://localhost:5173/)
+- Aplikacja: <http://localhost:5173/>
 
-Frontend w trybie dev używa proxy Vite na ścieżkach `/auth`, `/users`, `/products`, `/recipes`, `/meals`, `/leaderboard` → `http://localhost:8000`. Backend dodatkowo ma CORS z `allow_credentials=True` dla `http://localhost:5173`.
+Frontend w trybie dev używa **proxy Vite** dla ścieżek `/auth`, `/users`, `/products`, `/recipes`, `/meals`, `/leaderboard` → `http://localhost:8000`. Dzięki temu cookie sesji (httpOnly, SameSite=Lax) działa bez konfiguracji CORS po stronie przeglądarki. Backend dodatkowo ma `CORSMiddleware` z `allow_credentials=True` dla `http://localhost:5173` (na wypadek bezpośrednich wywołań).
+
+---
+
+## 🌱 Seed (dane przykładowe)
+
+Skrypt `backend/seed.py` wstawia do bazy gotowy zestaw użytkowników, produktów i przepisów. Jest **idempotentny** — pomija rekordy już istniejące.
+
+```bash
+cd backend
+python seed.py                          # admin z domyślnym mailem
+python seed.py --admin-email mail@x.pl  # własny e-mail dla admina
+```
+
+**Co tworzy:**
+
+| Typ | Ilość | Szczegóły |
+|---|---|---|
+| Admin | 1 | `admin@nutrition.local` / `Admin123!` (rola `ADMIN`) |
+| Użytkownicy | 5 | `jan/anna/marek/kasia/pawel @example.com` / `Password1!` |
+| Produkty globalne | 10 | należą do admina, `is_global=TRUE`, widoczne w wyszukiwarce |
+| Produkty prywatne | 10 | po 2 na użytkownika, `is_global=FALSE` |
+| Przepisy | 5 | każdy ma składniki + automatycznie wygenerowany auto-produkt |
+
+**Uprawnienia admina:** tylko admin może przełączać flagę `is_global` produktu przez `PATCH /products/{id}/global`. W UI przycisk pojawia się na stronie produktu.
 
 ---
 
 ## 📜 Najważniejsze komendy
 
-Komendy backendu uruchamiamy z katalogu `backend/`.
+Komendy backendu uruchamiamy z katalogu `backend/` z aktywnym `.venv`.
 
-* **`uvicorn app.main:app --reload`** – Uruchamia serwer deweloperski FastAPI z automatycznym odświeżaniem kodu.
-* **`python migrate.py`** – Nakłada wszystkie nowe migracje z folderu `/migrations` na bazę danych.
-* **`python migrate.py status`** – Wyświetla historię nałożonych migracji oraz wskazuje obecną wersję bazy.
-* **`python migrate.py rollback`** – Cofa tylko ostatnią (jedną) nałożoną migrację.
-* **`python migrate.py rollback [ID]`** – Cofa wszystkie migracje, które zostały nałożone po wskazanym identyfikatorze `[ID]`.
+| Komenda | Opis |
+|---|---|
+| `uvicorn app.main:app --reload` | Start FastAPI z hot-reloadem |
+| `python migrate.py` | Nakłada wszystkie nowe migracje z `migrations/` |
+| `python migrate.py status` | Historia migracji i aktualna wersja bazy |
+| `python migrate.py rollback` | Cofa ostatnią migrację |
+| `python migrate.py rollback [ID]` | Cofa wszystkie migracje po wskazanym ID |
+| `python seed.py` | Seed bazy danymi przykładowymi |
 
+Komendy frontendu z katalogu `frontend/`:
 
-#### Examples:
-
-```bash
-# Check current database version
-python apply_migrations.py status
-
-# Rollback to specific version (e.g., 0000_init)
-python apply_migrations.py rollback 0000_init
-```
-
----
-
-
-## 🛠️ Jak kontrybuować (Git Workflow)
-
-Aby zachować porządek w projekcie i uniknąć konfliktów, stosujemy model pracy oparty na gałęziach (Feature Branches). **Nigdy nie pushujemy bezpośrednio do gałęzi `main`.**
-
-### Kroki do wykonania przy nowym zadaniu:
-
-1.  **Zaktualizuj lokalny projekt**
-    Przełącz się na main i pobierz najnowsze zmiany od innych:
-    ```bash
-    git checkout main
-    git pull origin main
-    ```
-
-2.  **Stwórz nowy branch**
-    ```bash
-    git checkout -b nazwa-twojego-brancha
-    ```
-
-3.  **Wprowadź zmiany i zrób commit**
-    Pamiętaj o zachowaniu standardu [**Conventional Commits**](#-format-commitów).
-    ```bash
-    git add .
-    git commit -m "feat(db): add users table schema"
-    ```
-
-4.  **Wyślij zmiany na GitHub**
-    ```bash
-    git push -u origin nazwa-twojego-brancha
-    ```
-
-5.  **Stwórz Pull Request**
+| Komenda | Opis |
+|---|---|
+| `npm run dev` | Vite dev server (port 5173) |
+| `npm run build` | Build produkcyjny do `dist/` |
+| `npm run preview` | Lokalny preview buildu |
 
 ---
 
+## 🛠️ Git Workflow
+
+Stosujemy model **Feature Branches**. **Nigdy nie pushujemy bezpośrednio do `main`.**
+
+1. **Zaktualizuj `main`:**
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+2. **Nowy branch:**
+   ```bash
+   git checkout -b nazwa-twojego-brancha
+   ```
+3. **Commit** w standardzie [Conventional Commits](#-format-commitów):
+   ```bash
+   git add .
+   git commit -m "feat(db): add users table schema"
+   ```
+4. **Push:**
+   ```bash
+   git push -u origin nazwa-twojego-brancha
+   ```
+5. **Pull Request** na GitHubie.
+
+---
 
 ### 🧹 Pre-commit i jakość kodu
 
-W projekcie używamy [pre-commit](https://pre-commit.com/) oraz [ruff](https://docs.astral.sh/ruff/) do automatycznego formatowania i lintowania kodu przy każdym `git commit`.
+Używamy [pre-commit](https://pre-commit.com/) + [ruff](https://docs.astral.sh/ruff/) do automatycznego lintowania i formatowania przy `git commit`.
 
-**Instalacja narzędzi deweloperskich**
+```bash
+# instalacja (w aktywnym .venv backendu)
+pip install pre-commit ruff
+pre-commit install
 
-   ```bash
-      pip install -r requirements-dev.txt
-   ```
+# ręczne uruchomienie
+pre-commit run --all-files
+```
 
-**Instalacja hooków pre-commit**
-
-   ```bash
-      pre-commit install
-   ```
-
-**Ręczne uruchomienie wszystkich hooków**
-
-   ```bash
-      pre-commit run --all-files
-   ```
-
-
-Po instalacji hooków, przy każdym `git commit` automatycznie uruchomią się:
-
+Hooki, które się odpalą przy commicie:
 - `ruff` – linting i sortowanie importów
+- `ruff-format` – formatowanie
 
-- `ruff-format` – formatowanie kodu
-
+---
 
 ### ✍️ Format commitów
 
-Stosujemy standard [**Conventional Commits**](https://www.conventionalcommits.org/en/v1.0.0/), aby się móc później łatwiej połapać.
-
-**Format**
+Standard [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
 
 ```
 <type>(opcjonalny scope): opis w czasie teraźniejszym
 ```
 
-**Typy commitów**
+**Typy:**
+- `feat:` — nowa funkcjonalność
+- `fix:` — naprawa błędu
+- `docs:` — dokumentacja
+- `refactor:` — poprawa struktury kodu
+- `test:` — testy
+- `chore:` — konfiguracja, dependency itp.
 
-- `feat:` - nowa funkcjonalność
-- `fix:` - naprawa błędu
-- `docs:` - dokumentacja
-- `refactor:` - poprawa struktury kodu
-- `test:` - testy
-- `chore:` - zmiany w konfiguracji, dependency itp.
-
-**Przykłady**
-
+**Przykłady:**
 ```bash
-   feat(auth): add USOS SSO login
-   fix(quizzes): correct question ordering
-   docs: update README with backend setup
+feat(auth): add USOS SSO login
+fix(recipes): correct ingredient ordering
+docs: update README with seed instructions
 ```
----

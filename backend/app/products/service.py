@@ -86,6 +86,17 @@ def delete_product(conn, product_id):
         return affected_rows > 0
 
 
+def set_product_global(conn, product_id, is_global: bool):
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE products_product SET is_global = %s WHERE id = %s RETURNING *",
+            (is_global, str(product_id)),
+        )
+        updated = cursor.fetchone()
+        conn.commit()
+        return updated
+
+
 def patch_product(conn, product_id: str, product_data: ProductUpdate):
     update_data = product_data.model_dump(exclude_unset=True)
 

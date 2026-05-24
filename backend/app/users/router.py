@@ -1,6 +1,6 @@
 from uuid import UUID
 from typing import List
-from fastapi import APIRouter, status, Response, Request, Depends, HTTPException
+from fastapi import APIRouter, status, Response, Request, Depends, HTTPException, Query
 from app.users.schemas import (
     UserRegister,
     UserLogin,
@@ -8,6 +8,7 @@ from app.users.schemas import (
     PasswordResetRequest,
     PasswordResetConfirm,
     FollowedUser,
+    UserSearchResult,
 )
 from app.users.service import (
     register_new_user,
@@ -19,6 +20,7 @@ from app.users.service import (
     follow_user,
     unfollow_user,
     list_followed_users,
+    search_users_by_username,
 )
 from app.users.dependencies import get_current_user
 from app.database import get_db
@@ -81,6 +83,17 @@ def reset_password(data: PasswordResetConfirm, db=Depends(get_db)):
 @users_router.get("/me")
 def get_my_profile(current_user: dict = Depends(get_current_user)):
     return {"message": "Witaj w tajnej strefie!", "user_data": current_user}
+
+
+@users_router.get("/search", response_model=List[UserSearchResult])
+def search_users(
+    q: str = Query(
+        ..., min_length=2, description="Fragment nazwy użytkownika (min. 2 znaki)"
+    ),
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    return search_users_by_username(q, db)
 
 
 @users_router.get("/me/following", response_model=List[FollowedUser])

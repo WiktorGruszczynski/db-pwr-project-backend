@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from app.database import get_db
 from app.users.router import auth_router, users_router
 from app.products.router import router as products_router
@@ -10,6 +11,14 @@ from app.leaderboard.router import router as leaderboard_router
 load_dotenv()
 
 app = FastAPI(title="Nutrition App")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # test endpoint

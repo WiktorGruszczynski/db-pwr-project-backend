@@ -11,7 +11,6 @@ def get_current_user(request: Request, db=Depends(get_db)) -> dict:
             detail="Brak sesji. Zaloguj się ponownie.",
         )
 
-    # delegujemy zapytanie do bazy do funkcji w serwisie
     user = get_user_by_session(session_id, db)
 
     if not user:
@@ -21,3 +20,12 @@ def get_current_user(request: Request, db=Depends(get_db)) -> dict:
         )
 
     return user
+
+
+def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    if current_user.get("role") != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Brak uprawnień. Wymagana rola ADMIN.",
+        )
+    return current_user

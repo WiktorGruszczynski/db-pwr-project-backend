@@ -36,3 +36,10 @@ class FollowedUser(BaseModel):
     followed_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserSearchResult(BaseModel):
+    id: UUID
+    username: str
+
+    model_config = ConfigDict(from_attributes=True)

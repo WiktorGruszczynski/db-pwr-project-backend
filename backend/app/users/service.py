@@ -184,7 +184,7 @@ def get_user_by_session(session_id: str, conn) -> dict | None:
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT u.id, u.username, u.email
+            SELECT u.id, u.username, u.email, u.role
             FROM session s
             JOIN users_user u ON s.user_id = u.id
             WHERE s.id = %s AND s.expires_at > CURRENT_TIMESTAMP
@@ -235,6 +235,20 @@ def verify_and_reset_password(email: str, code: str, new_password: str, conn) ->
             "DELETE FROM verification_code WHERE id = %s", (valid_code["id"],)
         )
         conn.commit()
+
+
+def search_users_by_username(query: str, conn) -> list:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id, username FROM users_user
+            WHERE username ILIKE %s AND is_enabled = TRUE
+            ORDER BY username
+            LIMIT 20
+            """,
+            (f"%{query}%",),
+        )
+        return cursor.fetchall()
 
 
 def follow_user(follower_id: str, followed_id: str, conn) -> None:

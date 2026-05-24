@@ -15,3 +15,8 @@ yoyo.ini
 .ruff_cache
 
 .claude
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/

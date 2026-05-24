@@ -4,51 +4,54 @@
 
 ## 📖 O projekcie
 
-Aplikacja żywieniowa
+Aplikacja żywieniowa — monorepo z backendem (FastAPI) i frontendem (React + Vite).
+
+```
+.
+├── backend/    # FastAPI + Postgres
+└── frontend/   # React + Vite (dev proxy → backend)
+```
 
 
 ## 🚀 Uruchomienie lokalne
 
-### Wymagania
+### Backend
 
-- Python **3.10+**
-- pip
+Wymagania: Python **3.10+**, pip.
 
-### Instalacja
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate        # Linux / macOS
+.venv\Scripts\activate           # Windows
+pip install -r requirements.txt
+cp .env.example .env             # i uzupełnij wartości
+python migrate.py                # nałóż migracje
+uvicorn app.main:app --reload    # API na http://localhost:8000
+```
 
-1. **Sklonuj repozytorium**
+API: [http://localhost:8000/](http://localhost:8000/)
+Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-    ```bash
-    git clone https://github.com/WiktorGruszczynski/db-pwr-project-backend.git
-    cd db-pwr-project-backend
-    ```
+### Frontend
 
-2. **Utwórz i aktywuj środowisko wirtualne**
+Wymagania: Node **18+**, npm.
 
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate        # Linux / macOS
-   .venv\Scripts\activate           # Windows
-   ```
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-3. **Zainstaluj zależności**
+Aplikacja: [http://localhost:5173/](http://localhost:5173/)
 
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Skopiuj plik środowiskowy**
-
-   ```
-   cp .env.example .env
-   ```
-
-Po uruchomieniu API będzie dostępne pod:
-[http://localhost:8000/](http://localhost:8000/)
+Frontend w trybie dev używa proxy Vite na ścieżkach `/auth`, `/users`, `/products`, `/recipes`, `/meals`, `/leaderboard` → `http://localhost:8000`. Backend dodatkowo ma CORS z `allow_credentials=True` dla `http://localhost:5173`.
 
 ---
 
 ## 📜 Najważniejsze komendy
+
+Komendy backendu uruchamiamy z katalogu `backend/`.
 
 * **`uvicorn app.main:app --reload`** – Uruchamia serwer deweloperski FastAPI z automatycznym odświeżaniem kodu.
 * **`python migrate.py`** – Nakłada wszystkie nowe migracje z folderu `/migrations` na bazę danych.

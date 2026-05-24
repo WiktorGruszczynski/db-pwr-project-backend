@@ -263,3 +263,18 @@ def unfollow_user(follower_id: str, followed_id: str, conn) -> None:
             (follower_id, followed_id),
         )
         conn.commit()
+
+
+def list_followed_users(follower_id: str, conn) -> list:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT u.id, u.username, u.email, f.created_at AS followed_at
+            FROM users_follower f
+            JOIN users_user u ON u.id = f.followed_id
+            WHERE f.follower_id = %s
+            ORDER BY f.created_at DESC
+            """,
+            (follower_id,),
+        )
+        return cursor.fetchall()

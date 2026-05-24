@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
+from uuid import UUID
+from datetime import datetime
 
 
 class UserRegister(BaseModel):
@@ -25,3 +27,12 @@ class PasswordResetConfirm(BaseModel):
     email: EmailStr
     code: str
     new_password: str
+
+
+class FollowedUser(BaseModel):
+    id: UUID
+    username: str
+    email: EmailStr
+    followed_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

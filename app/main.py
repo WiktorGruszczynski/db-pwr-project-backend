@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends
 from app.database import get_db
-from app.users.router import router as users_router
+from app.users.router import auth_router, users_router
 from app.products.router import router as products_router
 from app.recipes.router import router as recipes_router
 
@@ -16,6 +16,7 @@ def root(db=Depends(get_db)):
     return {"message": db.cursor()}
 
 
+app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(products_router)
 app.include_router(recipes_router)

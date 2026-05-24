@@ -52,9 +52,16 @@ def add_meal_item(conn, user_id: str, data: MealItemCreate) -> dict:
             (data.portion, meal_id, str(data.product_id)),
         )
         item_id = cursor.fetchone()["id"]
-        conn.commit()
 
         scale = data.portion / product["quantity"]
+        item_kcal = product["energy_kcal"] * scale
+        # 1 kcal = 1 punkt do leaderboardu (floor zeby score byl integer >= 0)
+        cursor.execute(
+            "INSERT INTO leaderboard_entry (user_id, score) VALUES (%s, %s)",
+            (user_id, int(item_kcal)),
+        )
+        conn.commit()
+
         return {
             "id": item_id,
             "product_id": data.product_id,

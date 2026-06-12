@@ -8,7 +8,9 @@ async function request(method, path, body) {
     opts.headers['Content-Type'] = 'application/json';
     opts.body = JSON.stringify(body);
   }
-  const res = await fetch(path, opts);
+  // Prefiks /api oddziela wywolania API od tras SPA (np. /recipes, /products),
+  // ktore inaczej trafialyby do proxy i przy odswiezeniu redirectowaly na backend.
+  const res = await fetch(`/api${path}`, opts);
   const text = await res.text();
   let data = null;
   if (text) {

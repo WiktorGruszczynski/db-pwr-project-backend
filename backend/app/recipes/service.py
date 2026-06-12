@@ -105,14 +105,17 @@ def _upsert_auto_product(
         return cursor.fetchone()["id"]
 
 
-def _fetch_recipe_full(conn, recipe_id: str) -> dict | None:
+def _fetch_recipe_full(conn, recipe_id: str, user_id: str | None = None) -> dict | None:
     with conn.cursor() as cursor:
         cursor.execute(
             """
             SELECT r.id, r.name, r.description, r.average_rating,
                    r.created_at, r.user_id,
-                   (SELECT id FROM products_product WHERE recipe_id = r.id) AS product_id
-            FROM recipes_recipe r WHERE r.id = %s
+                   p.id AS product_id,
+                   NOT COALESCE(p.is_global, FALSE) AS is_private
+            FROM recipes_recipe r
+            LEFT JOIN products_product p ON p.recipe_id = r.id
+            WHERE r.id = %s
             """,
             (recipe_id,),
         )
@@ -122,14 +125,27 @@ def _fetch_recipe_full(conn, recipe_id: str) -> dict | None:
 
         cursor.execute(
             """
-            SELECT id, product_id, quantity, unit
-            FROM recipes_ingredient WHERE recipe_id = %s
-            ORDER BY id
+            SELECT i.id, i.product_id, i.quantity, i.unit,
+                   COALESCE(p.name, '(produkt usunięty)') AS product_name
+            FROM recipes_ingredient i
+            LEFT JOIN products_product p ON p.id = i.product_id
+            WHERE i.recipe_id = %s
+            ORDER BY i.id
             """,
             (recipe_id,),
         )
         recipe = dict(recipe)
         recipe["ingredients"] = [dict(row) for row in cursor.fetchall()]
+
+        recipe["my_rating"] = None
+        if user_id:
+            cursor.execute(
+                "SELECT rating FROM recipes_rating WHERE recipe_id = %s AND user_id = %s",
+                (recipe_id, str(user_id)),
+            )
+            row = cursor.fetchone()
+            if row:
+                recipe["my_rating"] = row["rating"]
         return recipe
 
 
@@ -153,8 +169,62 @@ def create_recipe(conn, recipe: RecipeCreate, user_id: str) -> dict:
     return _fetch_recipe_full(conn, recipe_id)
 
 
-def get_recipe(conn, recipe_id) -> dict | None:
-    return _fetch_recipe_full(conn, str(recipe_id))
+def search_recipes_by_name(conn, query: str) -> list[dict]:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id, name, description, average_rating, user_id
+            FROM recipes_recipe
+            WHERE name ILIKE %s
+            ORDER BY name
+            LIMIT 20
+            """,
+            (f"%{query}%",),
+        )
+        return cursor.fetchall()
+
+
+def get_recipe(conn, recipe_id, user_id: str | None = None) -> dict | None:
+    return _fetch_recipe_full(conn, str(recipe_id), user_id)
+
+
+def list_recipes_by_user(conn, user_id: str) -> list[dict]:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id, name, description, average_rating, user_id
+            FROM recipes_recipe
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+            """,
+            (str(user_id),),
+        )
+        return cursor.fetchall()
+
+
+def rate_recipe(conn, recipe_id, user_id: str, rating: int) -> dict | None:
+    """Wystawia/aktualizuje ocene uzytkownika; srednia przelicza trigger w bazie."""
+    rid = str(recipe_id)
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT id FROM recipes_recipe WHERE id = %s", (rid,))
+        if not cursor.fetchone():
+            return None
+
+        cursor.execute(
+            """
+            INSERT INTO recipes_rating (rating, recipe_id, user_id)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (recipe_id, user_id) DO UPDATE SET rating = EXCLUDED.rating
+            """,
+            (rating, rid, str(user_id)),
+        )
+        conn.commit()
+
+        cursor.execute(
+            "SELECT average_rating FROM recipes_recipe WHERE id = %s", (rid,)
+        )
+        avg = cursor.fetchone()["average_rating"]
+    return {"average_rating": avg or 0.0, "my_rating": rating}
 
 
 def delete_recipe(conn, recipe_id, user_id: str) -> bool:

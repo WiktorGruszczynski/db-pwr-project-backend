@@ -41,12 +41,19 @@ python migrate.py
 # (opcjonalnie) dane przykładowe — patrz sekcja Seed
 python seed.py
 
-# start serwera
-uvicorn app.main:app --reload
+# start serwera (jawnie IPv4 — patrz notka o sieci lokalnej ponizej)
+uvicorn app.main:app --reload --host 127.0.0.1
 ```
 
 - API: <http://localhost:8000/>
 - Swagger UI: <http://localhost:8000/docs>
+
+> **ℹ️ Sieć lokalna na Windows (localhost = IPv4 vs IPv6).** `localhost` rozwiązuje się i na `127.0.0.1` (IPv4), i na `::1` (IPv6) — a różne programy próbują ich w różnej kolejności (Firefox najpierw IPv4, Node/Python często IPv6). Jeśli usługa słucha tylko na jednej rodzinie, połączenie w drugą jest na Windows **cicho upuszczane** i klient czeka 0,25–2 s na timeout/fallback. Dlatego cały stack jest jawnie spięty po IPv4:
+> - **Backend**: `uvicorn --host 127.0.0.1`
+> - **Vite**: `server.host: '127.0.0.1'`, proxy → `http://127.0.0.1:8000`
+> - **Baza** w `.env`: `DB_HOST=127.0.0.1` (PostgreSQL domyślnie słucha na IPv4)
+>
+> W przeglądarce nadal otwierasz <http://localhost:5173/> — to działa, bo przeglądarki sprawnie wybierają IPv4. Nie mieszaj rodzin (np. backend na `::1` przy froncie na `127.0.0.1`), bo wracają sekundowe opóźnienia.
 
 ### 2. Frontend
 
@@ -60,7 +67,7 @@ npm run dev
 
 - Aplikacja: <http://localhost:5173/>
 
-Frontend w trybie dev używa **proxy Vite** dla ścieżek `/auth`, `/users`, `/products`, `/recipes`, `/meals`, `/leaderboard` → `http://localhost:8000`. Dzięki temu cookie sesji (httpOnly, SameSite=Lax) działa bez konfiguracji CORS po stronie przeglądarki. Backend dodatkowo ma `CORSMiddleware` z `allow_credentials=True` dla `http://localhost:5173` (na wypadek bezpośrednich wywołań).
+Frontend w trybie dev używa **proxy Vite**: wszystkie wywołania API idą pod prefiksem `/api`, a Vite przekierowuje tylko `/api/*` → `http://localhost:8000` (zdejmując prefiks `/api` przed przekazaniem do backendu). Dzięki temu nazwy tras SPA (`/recipes`, `/products`, `/meals`, `/leaderboard`, …) **nie kolidują** z proxy i odświeżenie dowolnej podstrony serwuje aplikację zamiast przekierowywać na backend. Cookie sesji (httpOnly, SameSite=Lax) działa bez konfiguracji CORS po stronie przeglądarki. Backend dodatkowo ma `CORSMiddleware` z `allow_credentials=True` dla `http://localhost:5173` (na wypadek bezpośrednich wywołań).
 
 ---
 
@@ -94,7 +101,7 @@ Komendy backendu uruchamiamy z katalogu `backend/` z aktywnym `.venv`.
 
 | Komenda | Opis |
 |---|---|
-| `uvicorn app.main:app --reload` | Start FastAPI z hot-reloadem |
+| `uvicorn app.main:app --reload --host 127.0.0.1` | Start FastAPI z hot-reloadem (jawnie IPv4 — patrz notka o sieci) |
 | `python migrate.py` | Nakłada wszystkie nowe migracje z `migrations/` |
 | `python migrate.py status` | Historia migracji i aktualna wersja bazy |
 | `python migrate.py rollback` | Cofa ostatnią migrację |

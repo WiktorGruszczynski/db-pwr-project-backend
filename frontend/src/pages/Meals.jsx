@@ -16,10 +16,26 @@ export default function Meals() {
   const [productId, setProductId] = useState('');
   const [portion, setPortion] = useState(100);
 
+  const [searchResults, setSearchResults] = useState(null); // null = jeszcze nie szukano
+  const [prodQuery, setProdQuery] = useState('');
+
   const load = async () => {
     setErr(null);
     try {
       setMeals(await api.get(`/meals/?date=${date}`));
+    } catch (e) {
+      setErr(e.message);
+    }
+  };
+
+  const onProductSearch = async (e) => {
+    e.preventDefault();
+    if (prodQuery.trim().length < 3) return;
+    setErr(null);
+    try {
+      const found = await api.get(`/products/search?q=${encodeURIComponent(prodQuery)}`);
+      setSearchResults(found);
+      setProductId(''); // nie wybieramy automatycznie — użytkownik wybiera z listy
     } catch (e) {
       setErr(e.message);
     }
@@ -39,7 +55,6 @@ export default function Meals() {
         product_id: productId,
         portion: Number(portion),
       });
-      setProductId('');
       load();
     } catch (e) {
       setErr(e.message);
@@ -83,9 +98,44 @@ export default function Meals() {
             {MEAL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </label></div>
-        <div><label>Produkt UUID <input value={productId} onChange={(e) => setProductId(e.target.value)} required style={{ width: 320 }} /></label></div>
+        <div>
+          <label>Szukaj produktu
+            <input
+              value={prodQuery}
+              onChange={(e) => setProdQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') onProductSearch(e); }}
+              placeholder="min. 3 znaki"
+            />
+          </label>{' '}
+          <button type="button" onClick={onProductSearch}>Szukaj</button>
+        </div>
+        {searchResults === null ? (
+          <p style={{ color: 'var(--muted)' }}>Wyszukaj produkt, aby wybrać go z listy.</p>
+        ) : searchResults.length === 0 ? (
+          <p>Nie znaleziono produktów pasujących do „{prodQuery}”.</p>
+        ) : (
+          <div>
+            <p style={{ margin: '8px 0 4px' }}>Wybierz produkt z listy:</p>
+            <ul style={{ marginTop: 0 }}>
+              {searchResults.map((p) => (
+                <li key={p.id}>
+                  <label>
+                    <input
+                      type="radio"
+                      name="product"
+                      value={p.id}
+                      checked={productId === p.id}
+                      onChange={() => setProductId(p.id)}
+                    />{' '}
+                    {p.name} ({p.energy_kcal} kcal / {p.quantity}{p.quantity_unit})
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div><label>Porcja (g) <input type="number" step="0.01" value={portion} onChange={(e) => setPortion(e.target.value)} required /></label></div>
-        <button type="submit">Dodaj</button>
+        <button type="submit" disabled={!productId}>Dodaj</button>
       </form>
       {err && <p style={{ color: 'red' }}>{err}</p>}
     </div>

@@ -62,7 +62,7 @@ def send_2fa_email(to_email: str, code: str) -> None:
 
 
 def create_and_send_2fa_code(
-    user_id: str, user_email: str, code_type: str, conn
+    user_id: str, user_email: str, code_type: str, conn, background_tasks=None
 ) -> None:
     code = generate_code()
     expires_at = datetime.now() + timedelta(minutes=10)
@@ -70,17 +70,22 @@ def create_and_send_2fa_code(
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            INSERT INTO verification_code (user_id, code, code_type, expires_at) 
+            INSERT INTO verification_code (user_id, code, code_type, expires_at)
             VALUES (%s, %s, %s, %s)
             """,
             (user_id, code, code_type, expires_at),
         )
         conn.commit()
 
-    send_2fa_email(to_email=user_email, code=code)
+    # SMTP do Gmaila trwa 2-4s — wysylamy po zwroceniu odpowiedzi,
+    # zeby request nie wisial na polaczeniu z serwerem pocztowym
+    if background_tasks is not None:
+        background_tasks.add_task(send_2fa_email, user_email, code)
+    else:
+        send_2fa_email(to_email=user_email, code=code)
 
 
-def register_new_user(user: UserRegister, conn) -> None:
+def register_new_user(user: UserRegister, conn, background_tasks=None) -> None:
     with conn.cursor() as cursor:
         cursor.execute(
             "SELECT id, is_enabled FROM users_user WHERE email = %s OR username = %s",
@@ -93,7 +98,11 @@ def register_new_user(user: UserRegister, conn) -> None:
                 raise HTTPException(status_code=400, detail="Użytkownik już istnieje")
             else:
                 create_and_send_2fa_code(
-                    existing_user["id"], user.email, "EMAIL_VERIFICATION", conn
+                    existing_user["id"],
+                    user.email,
+                    "EMAIL_VERIFICATION",
+                    conn,
+                    background_tasks,
                 )
                 return
 
@@ -110,7 +119,9 @@ def register_new_user(user: UserRegister, conn) -> None:
         new_user_id = cursor.fetchone()["id"]
 
         conn.commit()
-        create_and_send_2fa_code(new_user_id, user.email, "EMAIL_VERIFICATION", conn)
+        create_and_send_2fa_code(
+            new_user_id, user.email, "EMAIL_VERIFICATION", conn, background_tasks
+        )
 
 
 def verify_user_registration(data: UserVerify2FA, conn) -> None:
@@ -194,7 +205,7 @@ def get_user_by_session(session_id: str, conn) -> dict | None:
         return cursor.fetchone()
 
 
-def send_password_reset_code(email: str, conn) -> None:
+def send_password_reset_code(email: str, conn, background_tasks=None) -> None:
     with conn.cursor() as cursor:
         cursor.execute("SELECT id FROM users_user WHERE email = %s", (email,))
         user = cursor.fetchone()
@@ -202,7 +213,9 @@ def send_password_reset_code(email: str, conn) -> None:
         if not user:
             return
 
-        create_and_send_2fa_code(user["id"], email, "PASSWORD_RESET", conn)
+        create_and_send_2fa_code(
+            user["id"], email, "PASSWORD_RESET", conn, background_tasks
+        )
 
 
 def verify_and_reset_password(email: str, code: str, new_password: str, conn) -> None:
@@ -235,6 +248,16 @@ def verify_and_reset_password(email: str, code: str, new_password: str, conn) ->
             "DELETE FROM verification_code WHERE id = %s", (valid_code["id"],)
         )
         conn.commit()
+
+
+def get_user_public(user_id: str, conn) -> dict | None:
+    """Publiczne dane profilu (id + username) aktywnego uzytkownika."""
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT id, username FROM users_user WHERE id = %s AND is_enabled = TRUE",
+            (user_id,),
+        )
+        return cursor.fetchone()
 
 
 def search_users_by_username(query: str, conn) -> list:

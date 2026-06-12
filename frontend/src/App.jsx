@@ -6,6 +6,7 @@ import Verify from './pages/Verify.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
 import Profile from './pages/Profile.jsx';
+import UserProfile from './pages/UserProfile.jsx';
 import Products from './pages/Products.jsx';
 import ProductDetail from './pages/ProductDetail.jsx';
 import Recipes from './pages/Recipes.jsx';
@@ -21,7 +22,7 @@ function Nav() {
     nav('/login');
   };
   return (
-    <nav style={{ padding: 10, borderBottom: '1px solid #ccc', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+    <nav style={{ padding: '10px 16px', display: 'flex', gap: 12, flexWrap: 'wrap', position: 'sticky', top: 0, zIndex: 10 }}>
       <Link to="/">Home</Link>
       {user ? (
         <>
@@ -87,6 +88,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/profile" element={<Protected><Profile /></Protected>} />
+          <Route path="/users/:id" element={<Protected><UserProfile /></Protected>} />
           <Route path="/products" element={<Protected><Products /></Protected>} />
           <Route path="/products/:id" element={<Protected><ProductDetail /></Protected>} />
           <Route path="/recipes" element={<Protected><Recipes /></Protected>} />

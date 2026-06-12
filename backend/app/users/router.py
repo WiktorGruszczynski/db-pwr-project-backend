@@ -1,6 +1,15 @@
 from uuid import UUID
 from typing import List
-from fastapi import APIRouter, status, Response, Request, Depends, HTTPException, Query
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from app.users.schemas import (
     UserRegister,
     UserLogin,
@@ -21,9 +30,12 @@ from app.users.service import (
     unfollow_user,
     list_followed_users,
     search_users_by_username,
+    get_user_public,
 )
 from app.users.dependencies import get_current_user
 from app.database import get_db
+from app.recipes import service as recipes_service
+from app.recipes.schemas import RecipeListItem
 
 
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -31,8 +43,8 @@ users_router = APIRouter(prefix="/users", tags=["Users"])
 
 
 @auth_router.post("/register", status_code=status.HTTP_201_CREATED)
-def register(user: UserRegister, db=Depends(get_db)):
-    register_new_user(user, db)
+def register(user: UserRegister, background_tasks: BackgroundTasks, db=Depends(get_db)):
+    register_new_user(user, db, background_tasks)
     return {"message": "Konto utworzone. Sprawdź e-mail, aby aktywować konto."}
 
 
@@ -67,8 +79,12 @@ def logout(request: Request, response: Response, db=Depends(get_db)):
 
 
 @auth_router.post("/forgot-password")
-def forgot_password(request: PasswordResetRequest, db=Depends(get_db)):
-    send_password_reset_code(request.email, db)
+def forgot_password(
+    request: PasswordResetRequest,
+    background_tasks: BackgroundTasks,
+    db=Depends(get_db),
+):
+    send_password_reset_code(request.email, db, background_tasks)
     return {
         "message": "Jeśli podany e-mail istnieje w bazie, wysłano na niego kod resetujący."
     }
@@ -126,3 +142,28 @@ def unfollow(
     db=Depends(get_db),
 ):
     unfollow_user(str(current_user["id"]), str(followed_id), db)
+
+
+@users_router.get("/{user_id}", response_model=UserSearchResult)
+def get_public_profile(
+    user_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Publiczny profil uzytkownika (id + username)."""
+    user = get_user_public(str(user_id), db)
+    if not user:
+        raise HTTPException(status_code=404, detail="Nie ma takiego użytkownika")
+    return user
+
+
+@users_router.get("/{user_id}/recipes", response_model=List[RecipeListItem])
+def get_user_recipes(
+    user_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Przepisy utworzone przez wskazanego uzytkownika."""
+    if not get_user_public(str(user_id), db):
+        raise HTTPException(status_code=404, detail="Nie ma takiego użytkownika")
+    return recipes_service.list_recipes_by_user(db, str(user_id))

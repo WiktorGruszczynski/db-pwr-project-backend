@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 from typing import Optional, Literal
 
+from app.schemas import RoundedFloat
+
 
 class ProductCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -28,11 +30,15 @@ class ProductUpdate(BaseModel):
 class ProductResponse(BaseModel):
     id: UUID
     name: str
-    quantity: float
+    quantity: RoundedFloat
     quantity_unit: str
-    fat: float
-    carbohydrates: float
-    protein: float
-    energy_kcal: float
+    fat: RoundedFloat
+    carbohydrates: RoundedFloat
+    protein: RoundedFloat
+    energy_kcal: RoundedFloat
+    is_global: bool = False
+    recipe_id: Optional[UUID] = Field(
+        None, description="ID przepisu, z którego powstał auto-produkt"
+    )
 
     model_config = ConfigDict(from_attributes=True)

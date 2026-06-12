@@ -22,8 +22,10 @@ def create_product(
 def search_products(
     q: str = Query(..., min_length=3, description="Fragment nazwy (min. 3 znaki)"),
     db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    return service.search_global_products(db, q)
+    """Zwraca produkty globalne oraz wlasne produkty uzytkownika."""
+    return service.search_products(db, q, current_user["id"])
 
 
 @router.get("/mine", response_model=List[ProductResponse])
@@ -43,8 +45,12 @@ def get_product(product_id: UUID, db=Depends(get_db)):
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(product_id: UUID, db=Depends(get_db)):
-    if not service.delete_product(db, product_id):
+def delete_product(
+    product_id: UUID,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    if not service.delete_product(db, product_id, current_user["id"]):
         raise HTTPException(status_code=404, detail="Nie znaleziono do usunięcia")
 
 

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { api } from '../api.js';
+import Avatar from '../Avatar.jsx';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -64,17 +66,37 @@ export default function Profile() {
   return (
     <div>
       <h2>Profil</h2>
-      <pre>{JSON.stringify(user, null, 2)}</pre>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '14px 0 6px' }}>
+        <Avatar name={user?.username || user?.email} size={56} />
+        <div>
+          <div style={{ fontSize: '1.25em', fontWeight: 700 }}>
+            {user?.username}
+            {user?.role === 'ADMIN' && (
+              <span style={{ marginLeft: 8, fontSize: '0.6em', verticalAlign: 'middle', background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: 4 }}>
+                ADMIN
+              </span>
+            )}
+          </div>
+          <div style={{ color: 'var(--muted)' }}>{user?.email}</div>
+        </div>
+      </div>
 
-      <h3>Obserwowani</h3>
+      <h3>Obserwowani {following.length > 0 && <span style={{ color: 'var(--muted)', fontWeight: 400 }}>({following.length})</span>}</h3>
       {following.length === 0 ? (
-        <p>Nie obserwujesz nikogo.</p>
+        <p style={{ color: 'var(--muted)' }}>Nie obserwujesz nikogo — wyszukaj użytkownika poniżej.</p>
       ) : (
         <ul>
           {following.map((u) => (
-            <li key={u.id}>
-              <strong>{u.username}</strong> ({u.email}) — od {new Date(u.followed_at).toLocaleString()}
-              <button onClick={() => onUnfollow(u.id)} style={{ marginLeft: 8 }}>
+            <li key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Avatar name={u.username} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <Link to={`/users/${u.id}`}><strong>{u.username}</strong></Link>
+                <br />
+                <span style={{ color: 'var(--muted)', fontSize: '0.88em' }}>
+                  {u.email} · obserwujesz od {new Date(u.followed_at).toLocaleDateString('pl-PL')}
+                </span>
+              </span>
+              <button onClick={() => onUnfollow(u.id)} type="button">
                 Przestań obserwować
               </button>
             </li>
@@ -107,21 +129,27 @@ export default function Profile() {
               const alreadyFollowing = isFollowing(u.id);
               const isMe = String(u.id) === String(user?.id);
               return (
-                <li key={u.id}>
-                  <strong>{u.username}</strong>
-                  {isMe ? (
-                    <em style={{ marginLeft: 8 }}>(to Ty)</em>
-                  ) : alreadyFollowing ? (
-                    <>
-                      <span style={{ marginLeft: 8, color: 'green' }}>Obserwujesz</span>
-                      <button onClick={() => onUnfollow(u.id)} style={{ marginLeft: 8 }}>
+                <li key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Avatar name={u.username} />
+                  <strong style={{ flex: 1 }}>
+                    <Link to={`/users/${u.id}`}>{u.username}</Link>
+                    {isMe && <em style={{ marginLeft: 8, color: 'var(--muted)', fontWeight: 400 }}>(to Ty)</em>}
+                    {!isMe && alreadyFollowing && (
+                      <span style={{ marginLeft: 8, fontSize: '0.75em', fontWeight: 600, background: 'var(--primary-soft)', color: 'var(--primary-hover)', padding: '2px 8px', borderRadius: 999 }}>
+                        Obserwujesz
+                      </span>
+                    )}
+                  </strong>
+                  {!isMe && (
+                    alreadyFollowing ? (
+                      <button onClick={() => onUnfollow(u.id)} type="button">
                         Przestań obserwować
                       </button>
-                    </>
-                  ) : (
-                    <button onClick={() => onFollow(u.id)} style={{ marginLeft: 8 }}>
-                      Obserwuj
-                    </button>
+                    ) : (
+                      <button onClick={() => onFollow(u.id)} type="button">
+                        Obserwuj
+                      </button>
+                    )
                   )}
                 </li>
               );

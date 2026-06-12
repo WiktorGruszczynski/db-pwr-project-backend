@@ -40,15 +40,17 @@ def create_product(conn, product: ProductCreate, user_id: str):
         return new_product
 
 
-def search_global_products(conn, query: str):
+def search_products(conn, query: str, user_id: str):
+    """Produkty globalne + wlasne uzytkownika (w tym auto-produkty jego przepisow)."""
     with conn.cursor() as cursor:
         cursor.execute(
             """
             SELECT * FROM products_product
-            WHERE is_global = TRUE AND name ILIKE %s
+            WHERE (is_global = TRUE OR user_id = %s) AND name ILIKE %s
             ORDER BY name
+            LIMIT 30
             """,
-            (f"%{query}%",),
+            (str(user_id), f"%{query}%"),
         )
         return cursor.fetchall()
 
@@ -75,15 +77,33 @@ def get_product(conn, product_id):
         return cursor.fetchone()
 
 
-def delete_product(conn, product_id):
+def delete_product(conn, product_id, user_id: str):
+    pid = str(product_id)
     with conn.cursor() as cursor:
         cursor.execute(
-            "DELETE FROM products_product WHERE id = %s",
-            (str(product_id),),
+            "SELECT recipe_id, is_global, user_id FROM products_product WHERE id = %s",
+            (pid,),
         )
-        affected_rows = cursor.rowcount
+        existing = cursor.fetchone()
+        if not existing:
+            return False
+        if existing["is_global"]:
+            raise HTTPException(
+                status_code=409,
+                detail="Produkt globalny — nie można go usunąć.",
+            )
+        if str(existing["user_id"]) != str(user_id):
+            raise HTTPException(status_code=403, detail="To nie jest twój produkt")
+
+        cursor.execute("DELETE FROM products_product WHERE id = %s", (pid,))
+        # produkt powiazany z przepisem - usun rowniez przepis (skladniki kaskadowo)
+        if existing["recipe_id"] is not None:
+            cursor.execute(
+                "DELETE FROM recipes_recipe WHERE id = %s",
+                (str(existing["recipe_id"]),),
+            )
         conn.commit()
-        return affected_rows > 0
+        return True
 
 
 def set_product_global(conn, product_id, is_global: bool):

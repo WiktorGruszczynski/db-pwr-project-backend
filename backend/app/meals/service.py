@@ -33,7 +33,8 @@ def add_meal_item(conn, user_id: str, data: MealItemCreate) -> dict:
     with conn.cursor() as cursor:
         cursor.execute(
             """
-            SELECT name, quantity, fat, carbohydrates, protein, energy_kcal
+            SELECT name, quantity, fat, carbohydrates, protein, energy_kcal,
+                   is_global, user_id
             FROM products_product WHERE id = %s
             """,
             (str(data.product_id),),
@@ -41,6 +42,11 @@ def add_meal_item(conn, user_id: str, data: MealItemCreate) -> dict:
         product = cursor.fetchone()
         if not product:
             raise HTTPException(status_code=404, detail="Produkt nie istnieje")
+        if not product["is_global"] and str(product["user_id"]) != str(user_id):
+            raise HTTPException(
+                status_code=403,
+                detail="Możesz zjeść tylko produkt globalny lub własny.",
+            )
 
         meal_id = _find_or_create_meal(conn, user_id, data.date, data.meal_type)
 

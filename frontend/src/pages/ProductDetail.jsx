@@ -121,8 +121,13 @@ export default function ProductDetail() {
         {field('protein', 'Białko', 'number', '0.01')}
         {field('energy_kcal', 'Energia (kcal)', 'number', '0.01')}
         <button type="submit">Zapisz</button>
-        <button type="button" onClick={onDelete} style={{ marginLeft: 8 }}>Usuń</button>
+        {!product.is_global && (
+          <button type="button" onClick={onDelete} style={{ marginLeft: 8 }}>Usuń</button>
+        )}
       </form>
+      {product.is_global && (
+        <p style={{ color: 'var(--muted)' }}>Produkt globalny — nie można go usunąć.</p>
+      )}
       {err && <p style={{ color: 'red' }}>{err}</p>}
     </div>
   );

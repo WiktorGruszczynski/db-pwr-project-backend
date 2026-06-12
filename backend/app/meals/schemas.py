@@ -3,6 +3,8 @@ from uuid import UUID
 from datetime import date as DateType
 from typing import Literal, List
 
+from app.schemas import RoundedFloat
+
 
 MealType = Literal["BREAKFAST", "LUNCH", "DINNER", "SNACK"]
 
@@ -18,11 +20,11 @@ class MealItemResponse(BaseModel):
     id: UUID
     product_id: UUID
     product_name: str
-    portion: float
-    fat: float
-    carbohydrates: float
-    protein: float
-    energy_kcal: float
+    portion: RoundedFloat
+    fat: RoundedFloat
+    carbohydrates: RoundedFloat
+    protein: RoundedFloat
+    energy_kcal: RoundedFloat
 
     model_config = ConfigDict(from_attributes=True)
 

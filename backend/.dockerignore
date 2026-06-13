@@ -1,0 +1,14 @@
+# Środowisko i sekrety — kontener bierze konfigurację z env compose'a,
+# NIE z lokalnego .env (ma DB_HOST=localhost, błędny w sieci kontenerów).
+.env
+.venv/
+
+# Cache Pythona
+__pycache__/
+*.pyc
+.ruff_cache/
+
+# Narzędzia/dev
+.git/
+.pre-commit-config.yaml
+yoyo.ini

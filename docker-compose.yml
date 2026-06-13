@@ -1,0 +1,55 @@
+# Pełny stack jednym poleceniem: front + backend + baza (Postgres) + seed.
+# Tworzy bazę od zera, nakłada migracje i wypełnia ją danymi (seed.py).
+#
+#   docker compose up --build
+#
+# Aplikację otwierasz pod http://localhost:5173/, Swagger pod http://localhost:8000/docs.
+#
+# Reset bazy (usuwa wolumen z danymi i zaczyna od nowa):
+#   docker compose down -v
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-food_db_pwr}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASS:-admin}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-food_db_pwr}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-food_db_pwr}
+      DB_USER: ${DB_USER:-postgres}
+      # migrate.py czyta DB_PASS, app/seed czytają DB_PASSWORD — ustawiamy obie
+      DB_PASS: ${DB_PASS:-admin}
+      DB_PASSWORD: ${DB_PASS:-admin}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      RUN_MIGRATIONS: "true"
+      SEED_DB: "true"
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      # Otwierasz aplikację jak zwykle: http://localhost:5173/
+      - "5173:80"
+
+volumes:
+  pgdata:
